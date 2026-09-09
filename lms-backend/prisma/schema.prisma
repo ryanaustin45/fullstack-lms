@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  pemateri
+  peserta
+}
+
+enum CourseStatus {
+  draft
+  published
+  archived
+}
+
+enum EnrollmentStatus {
+  active
+  completed
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(peserta)
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  coursesTeaching Course[]      @relation("InstructorCourses")
+  enrollments     Enrollment[]
+  pointsEarned    UserPoint[]   @relation("PointsEarned")
+  pointsGiven     UserPoint[]   @relation("PointsGiven")
+  schedules       Schedule[]
+
+  @@map("users")
+}
+
+model Category {
+  id   String @id @default(uuid())
+  name String
+  slug String @unique
+
+  courses Course[]
+
+  @@map("categories")
+}
+
+model Course {
+  id            String       @id @default(uuid())
+  categoryId    String       @map("category_id")
+  instructorId  String?      @map("instructor_id")
+  title         String
+  description   String?
+  thumbnail     String?
+  startDate     DateTime?    @map("start_date")
+  status        CourseStatus @default(draft)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  category    Category     @relation(fields: [categoryId], references: [id])
+  instructor  User?        @relation("InstructorCourses", fields: [instructorId], references: [id])
+  materials   Material[]
+  enrollments Enrollment[]
+  points      UserPoint[]
+  schedules   Schedule[]
+
+  @@map("courses")
+}
+
+model Material {
+  id       String @id @default(uuid())
+  courseId String @map("course_id")
+  title    String
+  orderNo  Int    @default(0) @map("order_no")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("materials")
+}
+
+model Enrollment {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  courseId    String           @map("course_id")
+  progress    Int              @default(0)
+  status      EnrollmentStatus @default(active)
+  enrolledAt  DateTime         @default(now()) @map("enrolled_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+model UserPoint {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  courseId  String   @map("course_id")
+  points    Int
+  givenBy   String   @map("given_by")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation("PointsEarned", fields: [userId], references: [id])
+  giver  User   @relation("PointsGiven", fields: [givenBy], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@map("user_points")
+}
+
+model Schedule {
+  id           String   @id @default(uuid())
+  instructorId String   @map("instructor_id")
+  courseId     String?  @map("course_id")
+  title        String
+  eventDate    DateTime @map("event_date")
+  startTime    String   @map("start_time")
+  endTime      String   @map("end_time")
+
+  instructor User    @relation(fields: [instructorId], references: [id])
+  course     Course? @relation(fields: [courseId], references: [id])
+
+  @@map("schedules")
+}
