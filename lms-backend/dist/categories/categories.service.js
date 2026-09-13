@@ -19,6 +19,57 @@ let CategoriesService = class CategoriesService {
     findAll() {
         return this.prisma.category.findMany({ orderBy: { name: 'asc' } });
     }
+    generateSlug(text) {
+        return text
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+    }
+    async create(dto) {
+        const slug = this.generateSlug(dto.slug || dto.name);
+        const existing = await this.prisma.category.findUnique({ where: { slug } });
+        if (existing) {
+            throw new common_1.ConflictException('Kategori dengan nama/slug ini sudah ada');
+        }
+        return this.prisma.category.create({ data: { name: dto.name, slug } });
+    }
+    async update(id, dto) {
+        const category = await this.prisma.category.findUnique({ where: { id } });
+        if (!category) {
+            throw new common_1.NotFoundException('Kategori tidak ditemukan');
+        }
+        let slug = category.slug;
+        if (dto.name && dto.name !== category.name) {
+            slug = this.generateSlug(dto.name);
+            const clashing = await this.prisma.category.findFirst({
+                where: { slug, NOT: { id } },
+            });
+            if (clashing) {
+                throw new common_1.ConflictException('Kategori dengan nama/slug ini sudah ada');
+            }
+        }
+        return this.prisma.category.update({
+            where: { id },
+            data: { name: dto.name ?? category.name, slug },
+        });
+    }
+    async remove(id) {
+        const category = await this.prisma.category.findUnique({ where: { id } });
+        if (!category) {
+            throw new common_1.NotFoundException('Kategori tidak ditemukan');
+        }
+        try {
+            await this.prisma.category.delete({ where: { id } });
+        }
+        catch (err) {
+            if (err.code === 'P2003') {
+                throw new common_1.ConflictException('Kategori tidak bisa dihapus karena masih dipakai oleh course. Hapus atau pindahkan course-nya dulu.');
+            }
+            throw err;
+        }
+        return { message: 'Kategori berhasil dihapus' };
+    }
 };
 exports.CategoriesService = CategoriesService;
 exports.CategoriesService = CategoriesService = __decorate([

@@ -9,6 +9,11 @@ export async function login(email: string, password: string) {
   return data.data.user as User;
 }
 
+export async function register(name: string, email: string, password: string, role: 'peserta' | 'pemateri') {
+  const { data } = await api.post('/auth/register', { name, email, password, role });
+  return data.data;
+}
+
 export function logout() {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');

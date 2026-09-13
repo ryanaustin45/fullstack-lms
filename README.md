@@ -1,4 +1,4 @@
-# LMS by Adhivasindo — Fullstack
+# LMS by Ryan Austin Andika — Fullstack
 
 Learning Management System dengan backend **NestJS + PostgreSQL** dan frontend **React + Vite + Tailwind**.
 
@@ -12,11 +12,11 @@ fullstack-lms/
 
 ## Tech Stack
 
-| Layer | Teknologi |
-|---|---|
-| Backend | NestJS, Prisma ORM, PostgreSQL, JWT |
+| Layer    | Teknologi                             |
+| -------- | ------------------------------------- |
+| Backend  | NestJS, Prisma ORM, PostgreSQL, JWT   |
 | Frontend | React, Vite, TypeScript, Tailwind CSS |
-| API Docs | Swagger (auto-generate dari backend) |
+| API Docs | Swagger (auto-generate dari backend)  |
 
 ## Prasyarat
 
@@ -37,6 +37,7 @@ copy .env.example .env
 ```
 
 Edit `.env`:
+
 - `DATABASE_URL` → sesuaikan dengan koneksi PostgreSQL kamu
 - `JWT_ACCESS_SECRET` & `JWT_REFRESH_SECRET` → isi string random
 
@@ -68,27 +69,48 @@ Detail lengkap ada di [`lms-frontend/README.md`](./lms-frontend/README.md).
 ## Alur Testing Pertama Kali
 
 1. Backend & frontend sudah jalan (lihat langkah di atas)
-2. Buka `http://localhost:3000/api/docs`, coba `POST /auth/register` untuk buat akun pertama (misal role `admin`)
-3. Buka `http://localhost:5173`, login pakai akun tadi
-4. Dashboard masih kosong karena belum ada data course/category/schedule — input dulu lewat Swagger, atau lewat `npx prisma studio` (di folder `lms-backend`) untuk input manual ke database
+2. Buka `http://localhost:5173/register`, daftar akun sebagai **peserta** atau **pemateri** (role dipilih langsung di form)
+3. Untuk akun **admin**, daftar dulu lewat form (jadi peserta/pemateri), lalu ubah kolom `role` jadi `admin` manual — registrasi publik sengaja tidak bisa langsung jadi admin
+4. Login → masuk ke dashboard
+5. Buat kategori dulu di menu **Kategori** sebelum bisa membuat course (course butuh kategori)
+6. Lanjut buat course di menu **Modul**, klik judul course untuk kelola materinya
 
 ## Modul yang Tersedia
 
-- **Auth**: register, login, refresh token
-- **Categories**: kategori/modul kompetensi
-- **Courses**: CRUD + search & paginate
-- **Materials**: materi per course
-- **Enrollments**: peserta enroll + progress
-- **Leaderboard**: poin & ranking peserta (input manual oleh pemateri/admin)
-- **Schedules**: jadwal pemateri
+| Module      | Endpoint Backend                            | Halaman Frontend           | Catatan                                                                                    |
+| ----------- | ------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
+| Auth        | register, login, refresh                    | `/login`, `/register`      | Register hanya bisa role `peserta`/`pemateri`                                              |
+| Categories  | full CRUD                                   | `/categories`              | Perlu diisi dulu sebelum bisa buat course                                                  |
+| Courses     | CRUD + search & paginate                    | `/courses`, `/courses/:id` | Search real-time dengan debounce                                                           |
+| Materials   | create, list per course, delete             | Nested di `/courses/:id`   | Ditampilkan sebagai daftar materi per course                                               |
+| Enrollments | enroll, update progress, list milik sendiri | `/enrollments`             | Khusus role peserta; admin/pemateri belum bisa lihat semua peserta (backend belum support) |
+| Leaderboard | get ranking, input poin manual              | `/leaderboard`             | Input poin masih pakai User ID manual (belum ada search user)                              |
+| Schedules   | list per bulan, create                      | `/schedules`               | Filter per bulan dengan navigasi maju/mundur                                               |
+
+## Role & Hak Akses
+
+| Role       | Bisa Register Sendiri?                  | Kelola Course/Kategori/Jadwal | Enroll & Progress | Terima Poin                |
+| ---------- | --------------------------------------- | ----------------------------- | ----------------- | -------------------------- |
+| `admin`    | Tidak (harus diubah manual di database) | Ya (termasuk hapus)           | -                 | -                          |
+| `pemateri` | Ya                                      | Ya (kecuali hapus kategori)   | -                 | Bisa kasih poin ke peserta |
+| `peserta`  | Ya                                      | Read-only                     | Ya                | Ya                         |
+
+## Keterbatasan yang Diketahui (Belum Dikerjakan)
+
+- Endpoint `GET /users` belum ada → form "Berikan Poin" di Leaderboard masih input User ID manual
+- Admin/Pemateri belum bisa lihat daftar semua peserta yang enroll ke suatu course (perlu endpoint baru di Enrollments)
+- Halaman "Group Chat" dan "Pemateri" di sidebar belum dibuat
+- Progress belajar dihitung per course (bukan per materi), sesuai keputusan awal — materi belum ada status selesai/belum per peserta
 
 ## Roadmap
 
-- [ ] Halaman Register di frontend
-- [ ] Halaman Modul, Peserta, Group Chat, Pemateri
-- [ ] Role-based UI (tampilan beda untuk admin/pemateri/peserta)
+- [ ] Endpoint `GET /users` + halaman search user di Leaderboard
+- [ ] Endpoint list peserta per course untuk admin/pemateri
+- [ ] Halaman Group Chat & Pemateri
 - [ ] Deploy backend (Railway/Render) & frontend (Vercel/Netlify)
 
-## Kontribusi / Development
+## Development
 
-Setiap module backend mengikuti pola: `*.controller.ts` (route) → `*.service.ts` (logic) → `*.module.ts` (registrasi). Lihat contoh di `lms-backend/src/courses/` sebagai referensi saat menambah module baru.
+Setiap module backend mengikuti pola: `*.controller.ts` (route) → `*.service.ts` (logic) → `*.module.ts` (registrasi), dengan validasi lewat `dto/`. Lihat `lms-backend/src/courses/` sebagai referensi paling lengkap saat menambah module baru.
+
+Setiap halaman frontend mengikuti pola: fetch data di `useEffect`, modal terpisah untuk form create/edit (`src/components/*FormModal.tsx`), dan cek `getCurrentUser()?.role` untuk menyembunyikan aksi yang tidak diizinkan.
